@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aim Trainer</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        #menu, #game, #leaderboard {
+            display: none;
+        }
+        #menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #menu h1 {
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #1E88E5;
+            color: #FFFFFF;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1565C0;
+        }
+        #gameCanvas {
+            border: 2px solid #FFFFFF;
+            display: block;
+        }
+        #gameControls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+        #gameControls div {
+            margin-bottom: 10px;
+        }
+        #leaderboard table {
+            width: 50%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            color: #FFFFFF;
+        }
+        #leaderboard table, #leaderboard th, #leaderboard td {
+            border: 1px solid #FFFFFF;
+            text-align: center;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>Aim Trainer</h1>
+        <p>Choose your game mode:</p>
+        <button onclick="startGame('clicker')">Clicker Mode</button>
+        <button onclick="startGame('tracking')">Tracking Mode</button>
+    </div>
+
+    <div id="game">
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameControls">
+            <div>Score: <span id="score">0</span></div>
+            <div>Time: <span id="time">60</span></div>
+        </div>
+    </div>
+
+    <div id="leaderboard">
+        <h1>Leaderboard</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboardTable"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const menu = document.getElementById('menu');
+        const game = document.getElementById('game');
+        const leaderboard = document.getElementById('leaderboard');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('score');
+        const timeDisplay = document.getElementById('time');
+        const leaderboardTable = document.getElementById('leaderboardTable');
+
+        let gameMode = null;
+        let score = 0;
+        let timeLeft = 60;
+        let circle = { x: 0, y: 0, radius: 10, dx: 2, dy: 2 };
+        let tracking = false;
+        let timerInterval, gameInterval;
+
+        canvas.width = 800;
+        canvas.height = 600;
+
+        function startGame(mode) {
+            gameMode = mode;
+            score = 0;
+            timeLeft = 60;
+            tracking = false;
+            circle = {
+                x: Math.random() * (canvas.width - 20) + 10,
+                y: Math.random() * (canvas.height - 20) + 10,
+                radius: 10,
+                dx: Math.random() < 0.5 ? 2 : -2,
+                dy: Math.random() < 0.5 ? 2 : -2
+            };
+
+            menu.style.display = 'none';
+            game.style.display = 'block';
+            leaderboard.style.display = 'none';
+
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+
+            timerInterval = setInterval(updateTimer, 1000);
+            gameInterval = setInterval(gameLoop, 16);
+
+            if (gameMode === 'tracking') {
+                canvas.addEventListener('mousemove', handleMouseMove);
+            } else {
+                canvas.addEventListener('click', handleMouseClick);
+            }
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            clearInterval(gameInterval);
+            canvas.removeEventListener('mousemove', handleMouseMove);
+            canvas.removeEventListener('click', handleMouseClick);
+
+            const playerName = prompt('Game Over! Enter your name for the leaderboard:') || 'Anonymous';
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `<td>${leaderboardTable.rows.length + 1}</td><td>${playerName}</td><td>${score}</td>`;
+            leaderboardTable.appendChild(newRow);
+
+            menu.style.display = 'none';
+            game.style.display = 'none';
+            leaderboard.style.display = 'block';
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            timeDisplay.textContent = timeLeft;
+
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawCircle(circle);
+
+            if (gameMode === 'tracking' && tracking) {
+                score++;
+            } else if (gameMode === 'tracking' && !tracking) {
+                score = Math.max(0, score - 1);
+            }
+
+            scoreDisplay.textContent = score;
+
+            moveCircle();
+        }
+
+        function drawCircle(circle) {
+            ctx.beginPath();
+            ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'red';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function moveCircle() {
+            circle.x += circle.dx;
+            circle.y += circle.dy;
+
+            if (circle.x - circle.radius <= 0 || circle.x + circle.radius >= canvas.width) {
+                circle.dx = -circle.dx;
+            }
+            if (circle.y - circle.radius <= 0 || circle.y + circle.radius >= canvas.height) {
+                circle.dy = -circle.dy;
+            }
+        }
+
+        function handleMouseMove(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            const distance = Math.sqrt((mouseX - circle.x) ** 2 + (mouseY - circle.y) ** 2);
+
+            tracking = distance <= circle.radius;
+        }
+
+        function handleMouseClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+            const distance = Math.sqrt((mouseX - circle.x) ** 2 + (mouseY - circle.y) ** 2);
+
+            if (distance <= circle.radius) {
+                score++;
+                circle.x = Math.random() * (canvas.width - 20) + 10;
+                circle.y = Math.random() * (canvas.height - 20) + 10;
+            }
+        }
+    </script>
+</body>
+</html>
